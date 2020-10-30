@@ -50,7 +50,7 @@ func BlockHandlerFunc(conn net.Conn, isTls bool, host string, port int) {
 func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 	return func(clientConn net.Conn, isTls bool, host string, port int) {
 		log.Println("req:", isTls, host, port)
-		serverConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+		serverConn, err := dialer.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
 		if err != nil {
 			log.Printf("%+v\n", err)
 			return
