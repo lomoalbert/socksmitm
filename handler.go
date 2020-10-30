@@ -2,6 +2,7 @@ package socksmitm
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"golang.org/x/net/proxy"
@@ -64,26 +65,24 @@ func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 		reqBuff := bufio.NewReader(clientConn)
 		respBuff := bufio.NewReader(serverConn)
 		for {
-			clientReq, err := http.ReadRequest(reqBuff)
+			reqCopyBuff := bytes.NewBuffer(nil)
+			clientReq, err := http.ReadRequest(bufio.NewReader(io.TeeReader(reqBuff, reqCopyBuff)))
 			if err != nil {
 				log.Printf("%+v\n", err)
 				// todo: tcp connect handler
 				return
 			}
-
-			log.Printf(clientReq.URL.String())
 			err = clientReq.Write(serverConn)
 			if err != nil {
 				log.Printf("%+v\n", err)
 				return
 			}
-			//}
-			serverResp, err := http.ReadResponse(respBuff, clientReq)
+			respCopyBuff := bytes.NewBuffer(nil)
+			serverResp, err := http.ReadResponse(bufio.NewReader(io.TeeReader(respBuff, respCopyBuff)), clientReq)
 			if err != nil {
 				log.Printf("%+v\n", err)
 				return
 			}
-			//log.Println(serverResp)
 			err = serverResp.Write(clientConn)
 			if err != nil {
 				log.Printf("%+v\n", err)
@@ -92,6 +91,19 @@ func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 			if serverResp.StatusCode == http.StatusUpgradeRequired {
 				break
 			}
+
+			clientCopyReq, err := http.ReadRequest(bufio.NewReader(reqCopyBuff))
+			if err != nil {
+				log.Printf("%+v\n", err)
+				return
+			}
+			serverCopyResp, err := http.ReadResponse(bufio.NewReader(respCopyBuff), clientCopyReq)
+			if err != nil {
+				log.Printf("%+v\n", err)
+				return
+			}
+			log.Printf("copyreq: %#v\n", clientCopyReq)
+			log.Printf("copyresp: %#v\n", serverCopyResp)
 		}
 		//websocket
 		go func() {
