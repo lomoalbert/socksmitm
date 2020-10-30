@@ -1,4 +1,4 @@
-module socksmitm
+module github.com/lomoalbert/socksmitm
 
 go 1.14
 

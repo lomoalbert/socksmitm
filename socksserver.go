@@ -178,6 +178,7 @@ func (server *Server) SocksConnectIPv4(conn net.Conn, ip []byte, port []byte) {
 	portInt := int(port[0])*256 + int(port[1])
 	log.Println("ip:", ipv4)
 	log.Println("port:", portInt)
+	// todo:
 }
 
 func (server *Server) SocksConnectDomain(conn net.Conn, domain []byte, port []byte) {
@@ -199,21 +200,21 @@ func (server *Server) SocksConnectDomain(conn net.Conn, domain []byte, port []by
 	isTls := buff[0] == byte(22)
 	go func() {
 		defer c1.Close()
-		_,err := c1.Write(buff[:c])
-		if err != nil{
-		    log.Printf("%+v\n",err)
-		    return
+		_, err := c1.Write(buff[:c])
+		if err != nil {
+			log.Printf("%+v\n", err)
+			return
 		}
-		_,err = io.Copy(c1, conn)
-		if err != nil{
-		    log.Printf("%+v\n",err)
-		    return
+		_, err = io.Copy(c1, conn)
+		if err != nil {
+			log.Printf("%+v\n", err)
+			return
 		}
 	}()
 	go func() {
-		_,err := io.Copy(conn,c1)
-		if err != nil{
-			log.Printf("%+v\n",err)
+		_, err := io.Copy(conn, c1)
+		if err != nil {
+			log.Printf("%+v\n", err)
 			return
 		}
 	}()
@@ -240,11 +241,11 @@ func (server *Server) RegisterRootCa() {
 			Type:  "CERTIFICATE",
 			Bytes: server.certificate.Raw,
 		})
-		buff := make([]byte,1024)
-		_,err  := conn.Read(buff)
-		if err != nil{
-		    log.Printf("%+v\n",err)
-		    return
+		buff := make([]byte, 1024)
+		_, err := conn.Read(buff)
+		if err != nil {
+			log.Printf("%+v\n", err)
+			return
 		}
 		log.Println(string(buff))
 		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\nContent-Type: application/octet-stream\nContent-Disposition: attachment; filename=\"rootca.pem\"\nContent-Length: %d\nConnection: close\n\n", len(rootCertData))))

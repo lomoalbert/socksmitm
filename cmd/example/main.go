@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
+	"github.com/lomoalbert/socksmitm"
 	proxy2 "golang.org/x/net/proxy"
 	"io/ioutil"
 	"log"
-	"net/http"
-	"socksmitm"
 )
 
 func init() {
@@ -15,9 +14,9 @@ func init() {
 }
 func main() {
 	var addr = "0.0.0.0:5678"
-	pkcs12Data,err:=ioutil.ReadFile("charles-ssl-proxying.p12")
-	if err != nil{
-		log.Printf("%+v\n",err)
+	pkcs12Data, err := ioutil.ReadFile("charles-ssl-proxying.p12")
+	if err != nil {
+		log.Printf("%+v\n", err)
 		return
 	}
 	var dialer = proxy2.FromEnvironment()
@@ -32,12 +31,12 @@ func main() {
 	//	return
 	//}
 	mux := socksmitm.NewMux(dialer)
-	server,err := socksmitm.NewSocks5Server(mux, pkcs12Data, "DwCpsCLsZc7c")
-	if err != nil{
-	    log.Printf("%+v\n",err)
-	    return
+	server, err := socksmitm.NewSocks5Server(mux, pkcs12Data, "DwCpsCLsZc7c")
+	if err != nil {
+		log.Printf("%+v\n", err)
+		return
 	}
-	server.RegisterRootCa()// 注册 root.ca 处理器, 用于浏览器获取ca证书
+	server.RegisterRootCa() // 注册 root.ca 处理器, 用于浏览器获取ca证书
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	err = server.Run(ctx, addr)
@@ -45,10 +44,4 @@ func main() {
 		log.Printf("%+v\n", err)
 		return
 	}
-}
-
-func handler(writer http.ResponseWriter, request *http.Request) {
-	log.Println(request.URL.String())
-	writer.Write([]byte("mitm ok"))
-	writer.WriteHeader(200)
 }
