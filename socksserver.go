@@ -214,7 +214,7 @@ func (server *Server) SocksConnectDomain(conn net.Conn, domain []byte, port []by
 	go func() {
 		_, err := io.Copy(conn, c1)
 		if err != nil {
-			log.Printf("%+v\n", err)
+			//log.Printf("%+v\n", err)
 			return
 		}
 	}()

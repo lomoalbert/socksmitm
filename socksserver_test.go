@@ -3,13 +3,13 @@ package socksmitm_test
 import (
 	"context"
 	"crypto/tls"
+	"github.com/lomoalbert/socksmitm"
 	"golang.org/x/net/http2"
 	proxy2 "golang.org/x/net/proxy"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"socksmitm"
 	"testing"
 	"time"
 )
@@ -20,16 +20,16 @@ func init() {
 
 func TestNewSocks5Server(t *testing.T) {
 	var addr = "127.0.0.1:5678"
-	pkcs12Data,err:=ioutil.ReadFile("charles-ssl-proxying.p12")
-	if err != nil{
-		log.Printf("%+v\n",err)
+	pkcs12Data, err := ioutil.ReadFile("charles-ssl-proxying.p12")
+	if err != nil {
+		log.Printf("%+v\n", err)
 		return
 	}
 	mux := socksmitm.NewMux(proxy2.FromEnvironment())
-	server,err := socksmitm.NewSocks5Server(mux,pkcs12Data,"DwCpsCLsZc7c")
-	if err != nil{
-	    log.Printf("%+v\n",err)
-	    return
+	server, err := socksmitm.NewSocks5Server(mux, pkcs12Data, "DwCpsCLsZc7c")
+	if err != nil {
+		log.Printf("%+v\n", err)
+		return
 	}
 	server.RegisterRootCa()
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -47,7 +47,7 @@ func TestNewSocks5Server(t *testing.T) {
 		log.Printf("%+v\n", err)
 		return
 	}
-	tr :=  &http.Transport{
+	tr := &http.Transport{
 		Proxy: http.ProxyURL(proxy),
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
@@ -55,7 +55,7 @@ func TestNewSocks5Server(t *testing.T) {
 	}
 	http2.ConfigureTransport(tr)
 	client := &http.Client{
-		Transport:tr,
+		Transport:     tr,
 		CheckRedirect: nil,
 		Jar:           nil,
 		Timeout:       time.Second * 10,
