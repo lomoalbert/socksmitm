@@ -13,16 +13,25 @@ import (
 )
 
 type Mux struct {
-	DefaultHandler HandlerFunc
-	Handler        HostHandler
+	DefaultHandler    HandlerFunc
+	Handler           HostHandler
+	DefaultUDPHandler UDPHandlerFunc
+	UDPHandler        UDPHostHandler
 }
 
 type HostHandler map[string]HandlerFunc
+type UDPHostHandler map[string]UDPHandlerFunc
 
 type HandlerFunc func(clientConn net.Conn, isTls bool, host string, port int)
+type UDPHandlerFunc func(clientConn net.Conn, host string, port int)
 
 func NewMux(DefaultDialer proxy.Dialer) *Mux {
-	return &Mux{DefaultHandler: NewDefaultHandlerFunc(DefaultDialer), Handler: make(HostHandler)}
+	return &Mux{
+		DefaultHandler:    NewDefaultHandlerFunc(DefaultDialer),
+		Handler:           make(HostHandler),
+		DefaultUDPHandler: NewDefaultUDPHandlerFunc(DefaultDialer),
+		UDPHandler:        make(UDPHostHandler),
+	}
 }
 
 func (mux *Mux) SetDefaultHandlerFunc(handler HandlerFunc) {
@@ -42,7 +51,21 @@ func (mux *Mux) Handle(conn net.Conn, isTls bool, host string, port int) {
 	handler(conn, isTls, host, port)
 }
 
+func (mux *Mux) UDPHandle(conn net.Conn, host string, port int) {
+	udpHandler, ok := mux.UDPHandler[host]
+	if !ok {
+		mux.DefaultUDPHandler(conn, host, port)
+		return
+	}
+	udpHandler(conn, host, port)
+}
+
 func BlockHandlerFunc(conn net.Conn, isTls bool, host string, port int) {
+	//log.Println("block request to:", host)
+	return
+}
+
+func BlockUDPHandlerFunc(conn net.Conn, host string, port int) {
 	//log.Println("block request to:", host)
 	return
 }
@@ -116,6 +139,36 @@ func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 		}()
 		go func() {
 			_, err := io.Copy(clientConn, respBuff)
+			if err != nil {
+				log.Printf("%#v\n", err)
+				return
+			}
+			//log.Println(n)
+		}()
+	}
+}
+
+func NewDefaultUDPHandlerFunc(dialer proxy.Dialer) UDPHandlerFunc {
+	return func(clientConn net.Conn, host string, port int) {
+		//log.Println("req:", isTls, host, port)
+		serverConn, err := dialer.Dial("udp", fmt.Sprintf("%s:%d", host, port))
+		if err != nil {
+			log.Printf("%+v\n", err)
+			return
+		}
+		defer serverConn.Close()
+		defer clientConn.Close()
+		//websocket
+		go func() {
+			_, err := io.Copy(serverConn, clientConn)
+			if err != nil {
+				log.Printf("%#v\n", err)
+				return
+			}
+			//log.Println(n)
+		}()
+		go func() {
+			_, err := io.Copy(clientConn, serverConn)
 			if err != nil {
 				log.Printf("%#v\n", err)
 				return

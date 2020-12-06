@@ -109,7 +109,10 @@ func (server *Server) SocksHandle(conn net.Conn) error {
 	case 0x02: //BIND
 		return xerrors.New("cmd unsupport") // todo:
 	case 0x03: //UDP ASSOCIATE
-		return xerrors.New("cmd unsupport") // todo:
+		err = server.SocksUDPConnect(conn)
+		if err != nil {
+			return xerrors.Errorf("%w", err)
+		}
 	default:
 		return xerrors.New("cmd error")
 	}
@@ -143,7 +146,7 @@ func (server *Server) SocksTCPConnect(conn net.Conn) error {
 		}
 		dstAddr := reqMBytes[:4]
 		port := reqMBytes[4:]
-		server.SocksConnectIPv4(conn, dstAddr, port)
+		server.SocksTCPConnectIPv4(conn, dstAddr, port)
 	case 0x03: // 域名
 		reqMBytes := make([]byte, 1)
 		c, err = conn.Read(reqMBytes)
@@ -164,7 +167,7 @@ func (server *Server) SocksTCPConnect(conn net.Conn) error {
 		}
 		domain := reqMBytes[:domainLength]
 		port := reqMBytes[domainLength:]
-		server.SocksConnectDomain(conn, domain, port)
+		server.SocksTCPConnectDomain(conn, domain, port)
 	case 0x04: // IPv6
 		return xerrors.New("atyp unsupport") // todo:
 	default:
@@ -173,11 +176,11 @@ func (server *Server) SocksTCPConnect(conn net.Conn) error {
 	return nil
 }
 
-func (server *Server) SocksConnectIPv4(conn net.Conn, ip []byte, port []byte) {
+func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte) {
 	ipv4 := net.IPv4(ip[0], ip[1], ip[2], ip[3])
 	portInt := int(port[0])*256 + int(port[1])
-	log.Println("ip:", ipv4)
-	log.Println("port:", portInt)
+	//log.Println("ip:", ipv4)
+	//log.Println("port:", portInt)
 	domainStr := ipv4.String()
 	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x01}, ip...), port...))
 	c1, c2 := net.Pipe()
@@ -230,7 +233,7 @@ func (server *Server) SocksConnectIPv4(conn net.Conn, ip []byte, port []byte) {
 	server.mux.Handle(c2, isTls, domainStr, portInt)
 }
 
-func (server *Server) SocksConnectDomain(conn net.Conn, domain []byte, port []byte) {
+func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port []byte) {
 	domainStr := string(domain)
 	portInt := int(port[0])*256 + int(port[1])
 	//log.Println("domainStr:", domainStr)
@@ -312,4 +315,81 @@ func MainDomain(domain string) string {
 		return domain
 	}
 	return "*." + strings.Join(parts[len(parts)-2:], ".")
+}
+
+func (server *Server) SocksUDPConnect(conn net.Conn) error {
+	reqMBytes := make([]byte, 2)
+	//+-------+------+----------+----------+
+	//|  RSV  | ATYP | DST.ADDR | DST.PORT |
+	//+-------+------+----------+----------+
+	//| X'00' |  1   | Variable |    2     |
+	//+-------+------+----------+----------+
+	c, err := conn.Read(reqMBytes)
+	if err != nil {
+		return xerrors.Errorf("%w", err)
+	}
+	if c != 2 {
+		return xerrors.Errorf("req header: %x", reqMBytes)
+	}
+	atyp := reqMBytes[1]
+	switch atyp {
+	case 0x01: // IPv4
+		reqMBytes := make([]byte, 6)
+		c, err = conn.Read(reqMBytes)
+		if err != nil {
+			return xerrors.Errorf("%w", err)
+		}
+		if c != 6 {
+			return xerrors.Errorf("req header: %x", reqMBytes)
+		}
+		dstAddr := reqMBytes[:4]
+		port := reqMBytes[4:]
+		server.SocksUDPConnectIPv4(conn, dstAddr, port)
+	case 0x03: // 域名
+		reqMBytes := make([]byte, 1)
+		c, err = conn.Read(reqMBytes)
+		if err != nil {
+			return xerrors.Errorf("%w", err)
+		}
+		if c != 1 {
+			return xerrors.Errorf("req header: %x", reqMBytes)
+		}
+		domainLength := int(reqMBytes[0])
+		reqMBytes = make([]byte, domainLength+2)
+		c, err = conn.Read(reqMBytes)
+		if err != nil {
+			return xerrors.Errorf("%w", err)
+		}
+		if c != domainLength+2 {
+			return xerrors.Errorf("req header: %x", reqMBytes)
+		}
+		domain := reqMBytes[:domainLength]
+		port := reqMBytes[domainLength:]
+		server.SocksUDPConnectDomain(conn, domain, port)
+	case 0x04: // IPv6
+		return xerrors.New("atyp unsupport") // todo:
+	default:
+		return xerrors.New("atyp error")
+	}
+	return nil
+}
+
+func (server *Server) SocksUDPConnectIPv4(conn net.Conn, ip []byte, port []byte) {
+	ipv4 := net.IPv4(ip[0], ip[1], ip[2], ip[3])
+	portInt := int(port[0])*256 + int(port[1])
+	//log.Println("ip:", ipv4)
+	//log.Println("port:", portInt)
+	domainStr := ipv4.String()
+	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x01}, ip...), port...))
+
+	server.mux.UDPHandle(conn, domainStr, portInt)
+}
+
+func (server *Server) SocksUDPConnectDomain(conn net.Conn, domain []byte, port []byte) {
+	domainStr := string(domain)
+	portInt := int(port[0])*256 + int(port[1])
+	//log.Println("domainStr:", domainStr)
+	//log.Println("port:", portInt)
+	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x03, byte(len(domain))}, domain...), port...))
+	server.mux.UDPHandle(conn, domainStr, portInt)
 }
