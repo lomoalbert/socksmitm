@@ -19,7 +19,7 @@ type Mux struct {
 
 type HostHandler map[string]HandlerFunc
 
-type HandlerFunc func(conn net.Conn, isTls bool, host string, port int)
+type HandlerFunc func(clientConn net.Conn, isTls bool, host string, port int)
 
 func NewMux(DefaultDialer proxy.Dialer) *Mux {
 	return &Mux{DefaultHandler: NewDefaultHandlerFunc(DefaultDialer), Handler: make(HostHandler)}
