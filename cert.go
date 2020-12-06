@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func GenMITMTLSConfig(rootCa *x509.Certificate,dnsName string)(config *tls.Config,err error){
+func GenMITMTLSConfig(rootCa *x509.Certificate, dnsName string) (config *tls.Config, err error) {
 
 	equiCer := &x509.Certificate{
 		SerialNumber: big.NewInt(mathrand.Int63()), //证书序列号
@@ -38,11 +38,11 @@ func GenMITMTLSConfig(rootCa *x509.Certificate,dnsName string)(config *tls.Confi
 	//生成公钥私钥对
 	priKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil,xerrors.Errorf("%w",err)
+		return nil, xerrors.Errorf("%w", err)
 	}
 	subcert, err := x509.CreateCertificate(rand.Reader, equiCer, rootCa, &priKey.PublicKey, priKey)
 	if err != nil {
-		return nil,xerrors.Errorf("%w",err)
+		return nil, xerrors.Errorf("%w", err)
 	}
 
 	//编码证书文件和私钥文件
@@ -64,6 +64,8 @@ func GenMITMTLSConfig(rootCa *x509.Certificate,dnsName string)(config *tls.Confi
 		log.Println(err)
 		return
 	}
-	config = &tls.Config{Certificates: []tls.Certificate{cer}}
-	return config,nil
+	config = &tls.Config{
+		Certificates: []tls.Certificate{cer},
+	}
+	return config, nil
 }
