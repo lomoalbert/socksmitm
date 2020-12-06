@@ -43,7 +43,7 @@ func (server *Server) Run(ctx context.Context, addr string) error {
 		if err != nil {
 			return xerrors.Errorf("%w", err)
 		}
-		log.Println("got listener from:", conn.RemoteAddr())
+		//log.Println("got listener from:", conn.RemoteAddr())
 		go func() {
 			err = server.SocksHandle(conn)
 			if err != nil {
@@ -68,7 +68,7 @@ func (server *Server) SocksHandle(conn net.Conn) error {
 	if c != 2 {
 		return xerrors.Errorf("req header: %x", req1Byes)
 	}
-	log.Println("client conn read:", req1Byes)
+	//log.Println("client conn read:", req1Byes)
 	reqMBytes := make([]byte, int(req1Byes[1]))
 	c, err = conn.Read(reqMBytes)
 	if err != nil {
@@ -184,8 +184,8 @@ func (server *Server) SocksConnectIPv4(conn net.Conn, ip []byte, port []byte) {
 func (server *Server) SocksConnectDomain(conn net.Conn, domain []byte, port []byte) {
 	domainStr := string(domain)
 	portInt := int(port[0])*256 + int(port[1])
-	log.Println("domainStr:", domainStr)
-	log.Println("port:", portInt)
+	//log.Println("domainStr:", domainStr)
+	//log.Println("port:", portInt)
 	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x03, byte(len(domain))}, domain...), port...))
 	c1, c2 := net.Pipe()
 	defer c2.Close()
@@ -195,19 +195,19 @@ func (server *Server) SocksConnectDomain(conn net.Conn, domain []byte, port []by
 		log.Printf("%+v\n", err)
 		return
 	}
-	log.Println("content type:", buff[:c])
+	//log.Println("content type:", buff[:c])
 
 	isTls := buff[0] == byte(22)
 	go func() {
 		defer c1.Close()
 		_, err := c1.Write(buff[:c])
 		if err != nil {
-			log.Printf("%+v\n", err)
+			//log.Printf("%+v\n", err)
 			return
 		}
 		_, err = io.Copy(c1, conn)
 		if err != nil {
-			log.Printf("%+v\n", err)
+			//log.Printf("%+v\n", err)
 			return
 		}
 	}()
@@ -247,7 +247,7 @@ func (server *Server) RegisterRootCa() {
 			log.Printf("%+v\n", err)
 			return
 		}
-		log.Println(string(buff))
+		//log.Println(string(buff))
 		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\nContent-Type: application/octet-stream\nContent-Disposition: attachment; filename=\"rootca.pem\"\nContent-Length: %d\nConnection: close\n\n", len(rootCertData))))
 		conn.Write(rootCertData)
 		return

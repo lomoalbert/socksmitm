@@ -43,13 +43,13 @@ func (mux *Mux) Handle(conn net.Conn, isTls bool, host string, port int) {
 }
 
 func BlockHandlerFunc(conn net.Conn, isTls bool, host string, port int) {
-	log.Println("block request to:", host)
+	//log.Println("block request to:", host)
 	return
 }
 
 func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 	return func(clientConn net.Conn, isTls bool, host string, port int) {
-		log.Println("req:", isTls, host, port)
+		//log.Println("req:", isTls, host, port)
 		serverConn, err := dialer.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
 		if err != nil {
 			log.Printf("%+v\n", err)
@@ -68,13 +68,13 @@ func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 			reqCopyBuff := bytes.NewBuffer(nil)
 			clientReq, err := http.ReadRequest(bufio.NewReader(io.TeeReader(reqBuff, reqCopyBuff)))
 			if err != nil {
-				log.Printf("%+v\n", err)
+				//log.Printf("%+v\n", err)
 				// todo: tcp connect handler
 				return
 			}
 			err = clientReq.Write(serverConn)
 			if err != nil {
-				log.Printf("%+v\n", err)
+				//log.Printf("%+v\n", err)
 				return
 			}
 			respCopyBuff := bytes.NewBuffer(nil)
@@ -92,35 +92,35 @@ func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 				break
 			}
 
-			clientCopyReq, err := http.ReadRequest(bufio.NewReader(reqCopyBuff))
-			if err != nil {
-				log.Printf("%+v\n", err)
-				return
-			}
-			serverCopyResp, err := http.ReadResponse(bufio.NewReader(respCopyBuff), clientCopyReq)
-			if err != nil {
-				log.Printf("%+v\n", err)
-				return
-			}
-			log.Printf("copyreq: %#v\n", clientCopyReq)
-			log.Printf("copyresp: %#v\n", serverCopyResp)
+			//clientCopyReq, err := http.ReadRequest(bufio.NewReader(reqCopyBuff))
+			//if err != nil {
+			//	log.Printf("%+v\n", err)
+			//	return
+			//}
+			//serverCopyResp, err := http.ReadResponse(bufio.NewReader(respCopyBuff), clientCopyReq)
+			//if err != nil {
+			//	log.Printf("%+v\n", err)
+			//	return
+			//}
+			//log.Printf("copyreq: %#v\n", clientCopyReq)
+			//log.Printf("copyresp: %#v\n", serverCopyResp)
 		}
 		//websocket
 		go func() {
-			n, err := io.Copy(serverConn, reqBuff)
+			_, err := io.Copy(serverConn, reqBuff)
 			if err != nil {
 				log.Printf("%#v\n", err)
 				return
 			}
-			log.Println(n)
+			//log.Println(n)
 		}()
 		go func() {
-			n, err := io.Copy(clientConn, respBuff)
+			_, err := io.Copy(clientConn, respBuff)
 			if err != nil {
 				log.Printf("%#v\n", err)
 				return
 			}
-			log.Println(n)
+			//log.Println(n)
 		}()
 	}
 }
