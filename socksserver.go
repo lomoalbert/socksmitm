@@ -215,21 +215,7 @@ func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte)
 		}
 	}()
 	if isTls {
-		GetConfigForClient := func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
-			domainStr = clientHelloInfo.ServerName
-			config, ok := server.configs[MainDomain(clientHelloInfo.ServerName)]
-			var err error
-			if !ok {
-				config, err = GenMITMTLSConfig(server.rootCertificate, server.rootPrivateKey, MainDomain(clientHelloInfo.ServerName))
-				if err != nil {
-					log.Printf("%+v\n", err)
-					return nil, err
-				}
-				server.configs[MainDomain(clientHelloInfo.ServerName)] = config
-			}
-			return config, nil
-		}
-		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: GetConfigForClient})
+		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(&domainStr)})
 	}
 	log.Println("ip domain:", domainStr, portInt)
 	server.mux.Handle(c2, isTls, domainStr, portInt)
@@ -273,22 +259,26 @@ func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port [
 		}
 	}()
 	if isTls {
-		GetConfigForClient := func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
-			config, ok := server.configs[MainDomain(clientHelloInfo.ServerName)]
-			var err error
-			if !ok {
-				config, err = GenMITMTLSConfig(server.rootCertificate, server.rootPrivateKey, MainDomain(clientHelloInfo.ServerName))
-				if err != nil {
-					log.Printf("%+v\n", err)
-					return nil, err
-				}
-				server.configs[MainDomain(clientHelloInfo.ServerName)] = config
-			}
-			return config, nil
-		}
-		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: GetConfigForClient})
+		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(&domainStr)})
 	}
 	server.mux.Handle(c2, isTls, domainStr, portInt)
+}
+
+func (server *Server) GenFuncGetConfigForClient(hostname *string) func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
+	return func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
+		*hostname = clientHelloInfo.ServerName
+		config, ok := server.configs[MainDomain(clientHelloInfo.ServerName)]
+		var err error
+		if !ok {
+			config, err = GenMITMTLSConfig(server.rootCertificate, server.rootPrivateKey, MainDomain(clientHelloInfo.ServerName))
+			if err != nil {
+				log.Printf("%+v\n", err)
+				return nil, err
+			}
+			server.configs[MainDomain(clientHelloInfo.ServerName)] = config
+		}
+		return config, nil
+	}
 }
 
 // RegisterRootCa 注册 root.ca 处理器, 用于浏览器获取ca证书
