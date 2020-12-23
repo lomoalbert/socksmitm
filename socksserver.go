@@ -6,12 +6,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"golang.org/x/crypto/pkcs12"
-	"golang.org/x/xerrors"
 	"io"
 	"log"
 	"net"
 	"strings"
+
+	"golang.org/x/crypto/pkcs12"
+	"golang.org/x/xerrors"
 )
 
 type Server struct {

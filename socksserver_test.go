@@ -3,15 +3,16 @@ package socksmitm_test
 import (
 	"context"
 	"crypto/tls"
-	"github.com/lomoalbert/socksmitm"
-	"golang.org/x/net/http2"
-	proxy2 "golang.org/x/net/proxy"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/lomoalbert/socksmitm"
+	"golang.org/x/net/http2"
+	proxy2 "golang.org/x/net/proxy"
 )
 
 func init() {

@@ -3,10 +3,11 @@ package socksmitm
 import (
 	"crypto/tls"
 	"fmt"
-	"golang.org/x/net/proxy"
 	"io"
 	"log"
 	"net"
+
+	"golang.org/x/net/proxy"
 )
 
 type Mux struct {

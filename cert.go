@@ -6,11 +6,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"golang.org/x/xerrors"
 	"log"
 	"math/big"
 	"net"
 	"time"
+
+	"golang.org/x/xerrors"
 )
 
 func GenMITMTLSConfig(rootCa *x509.Certificate, rootPrivateKey interface{}, dnsName string) (config *tls.Config, err error) {

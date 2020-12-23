@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/lomoalbert/socksmitm"
-	proxy2 "golang.org/x/net/proxy"
 	"io/ioutil"
 	"log"
+
+	"github.com/lomoalbert/socksmitm"
+	proxy2 "golang.org/x/net/proxy"
 )
 
 func init() {

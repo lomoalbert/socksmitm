@@ -1,11 +1,12 @@
 package socksmitm_test
 
 import (
-	"github.com/lomoalbert/socksmitm"
-	"golang.org/x/crypto/pkcs12"
 	"io/ioutil"
 	"log"
 	"testing"
+
+	"github.com/lomoalbert/socksmitm"
+	"golang.org/x/crypto/pkcs12"
 )
 
 func TestServer_Run(t *testing.T) {
