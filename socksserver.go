@@ -15,17 +15,18 @@ import (
 )
 
 type Server struct {
-	mux         *Mux
-	certificate *x509.Certificate
-	configs     map[string]*tls.Config
+	mux             *Mux
+	rootCertificate *x509.Certificate
+	rootPrivateKey  interface{}
+	configs         map[string]*tls.Config
 }
 
 func NewSocks5Server(mux *Mux, pkcs12Data []byte, pkcs12Password string) (*Server, error) {
-	_, ca, err := pkcs12.Decode(pkcs12Data, pkcs12Password)
+	privateKey, ca, err := pkcs12.Decode(pkcs12Data, pkcs12Password)
 	if err != nil {
 		return nil, xerrors.Errorf("%w", err)
 	}
-	return &Server{mux: mux, certificate: ca, configs: make(map[string]*tls.Config)}, nil
+	return &Server{mux: mux, rootCertificate: ca, rootPrivateKey: privateKey, configs: make(map[string]*tls.Config)}, nil
 }
 
 func (server *Server) Run(ctx context.Context, addr string) error {
@@ -114,7 +115,7 @@ func (server *Server) SocksHandle(conn net.Conn) error {
 			return xerrors.Errorf("%w", err)
 		}
 	default:
-		return xerrors.New("cmd error")
+		return xerrors.Errorf("cmd unsupport %x", cmd)
 	}
 	return nil
 }
@@ -179,8 +180,8 @@ func (server *Server) SocksTCPConnect(conn net.Conn) error {
 func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte) {
 	ipv4 := net.IPv4(ip[0], ip[1], ip[2], ip[3])
 	portInt := int(port[0])*256 + int(port[1])
-	//log.Println("ip:", ipv4)
-	//log.Println("port:", portInt)
+	log.Println("ip:", ipv4)
+	log.Println("port:", portInt)
 	domainStr := ipv4.String()
 	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x01}, ip...), port...))
 	c1, c2 := net.Pipe()
@@ -219,7 +220,7 @@ func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte)
 			config, ok := server.configs[MainDomain(clientHelloInfo.ServerName)]
 			var err error
 			if !ok {
-				config, err = GenMITMTLSConfig(server.certificate, MainDomain(clientHelloInfo.ServerName))
+				config, err = GenMITMTLSConfig(server.rootCertificate, server.rootPrivateKey, MainDomain(clientHelloInfo.ServerName))
 				if err != nil {
 					log.Printf("%+v\n", err)
 					return nil, err
@@ -230,14 +231,15 @@ func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte)
 		}
 		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: GetConfigForClient})
 	}
+	log.Println("ip domain:", domainStr, portInt)
 	server.mux.Handle(c2, isTls, domainStr, portInt)
 }
 
 func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port []byte) {
 	domainStr := string(domain)
 	portInt := int(port[0])*256 + int(port[1])
-	//log.Println("domainStr:", domainStr)
-	//log.Println("port:", portInt)
+	log.Println("domainStr:", domainStr)
+	log.Println("port:", portInt)
 	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x03, byte(len(domain))}, domain...), port...))
 	c1, c2 := net.Pipe()
 	defer c2.Close()
@@ -275,7 +277,7 @@ func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port [
 			config, ok := server.configs[MainDomain(clientHelloInfo.ServerName)]
 			var err error
 			if !ok {
-				config, err = GenMITMTLSConfig(server.certificate, MainDomain(clientHelloInfo.ServerName))
+				config, err = GenMITMTLSConfig(server.rootCertificate, server.rootPrivateKey, MainDomain(clientHelloInfo.ServerName))
 				if err != nil {
 					log.Printf("%+v\n", err)
 					return nil, err
@@ -294,7 +296,7 @@ func (server *Server) RegisterRootCa() {
 	server.mux.Register("root.ca", func(conn net.Conn, isTls bool, host string, port int) {
 		rootCertData := pem.EncodeToMemory(&pem.Block{
 			Type:  "CERTIFICATE",
-			Bytes: server.certificate.Raw,
+			Bytes: server.rootCertificate.Raw,
 		})
 		buff := make([]byte, 1024)
 		_, err := conn.Read(buff)
@@ -302,7 +304,8 @@ func (server *Server) RegisterRootCa() {
 			log.Printf("%+v\n", err)
 			return
 		}
-		//log.Println(string(buff))
+		log.Println(string(buff))
+		log.Println(string(rootCertData))
 		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\nContent-Type: application/octet-stream\nContent-Disposition: attachment; filename=\"rootca.pem\"\nContent-Length: %d\nConnection: close\n\n", len(rootCertData))))
 		conn.Write(rootCertData)
 		return
@@ -314,7 +317,7 @@ func MainDomain(domain string) string {
 	if len(parts) <= 2 {
 		return domain
 	}
-	return "*." + strings.Join(parts[len(parts)-2:], ".")
+	return strings.Join(parts[len(parts)-2:], ".")
 }
 
 func (server *Server) SocksUDPConnect(conn net.Conn) error {

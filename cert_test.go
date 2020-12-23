@@ -14,12 +14,12 @@ func TestServer_Run(t *testing.T) {
 		log.Printf("%+v\n", err)
 		return
 	}
-	_, ca, err := pkcs12.Decode(caP12, "DwCpsCLsZc7c")
+	rootPrivateKey, ca, err := pkcs12.Decode(caP12, "DwCpsCLsZc7c")
 	if err != nil {
 		log.Printf("%+v\n", err)
 		return
 	}
-	config, err := socksmitm.GenMITMTLSConfig(ca, "baidu.com")
+	config, err := socksmitm.GenMITMTLSConfig(ca, rootPrivateKey, "baidu.com")
 	if err != nil {
 		log.Printf("%+v\n", err)
 		return
