@@ -181,8 +181,6 @@ func (server *Server) SocksTCPConnect(conn net.Conn) error {
 func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte) {
 	ipv4 := net.IPv4(ip[0], ip[1], ip[2], ip[3])
 	portInt := int(port[0])*256 + int(port[1])
-	log.Println("ip:", ipv4)
-	log.Println("port:", portInt)
 	domainStr := ipv4.String()
 	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x01}, ip...), port...))
 	c1, c2 := net.Pipe()
@@ -218,15 +216,12 @@ func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte)
 	if isTls {
 		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(&domainStr)})
 	}
-	log.Println("ip domain:", domainStr, portInt)
 	server.mux.Handle(c2, isTls, domainStr, portInt)
 }
 
 func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port []byte) {
 	domainStr := string(domain)
 	portInt := int(port[0])*256 + int(port[1])
-	log.Println("domainStr:", domainStr)
-	log.Println("port:", portInt)
 	conn.Write(append(append([]byte{0x05, 0x00, 0x00, 0x03, byte(len(domain))}, domain...), port...))
 	c1, c2 := net.Pipe()
 	defer c2.Close()

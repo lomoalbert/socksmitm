@@ -82,6 +82,7 @@ func GenMITMTLSConfig(rootCa *x509.Certificate, rootPrivateKey interface{}, dnsN
 	cert.Leaf = rootCa
 	config = &tls.Config{
 		Certificates: []tls.Certificate{cert},
+		//NextProtos:   []string{"h2", "http/1.1"},
 	}
 	return config, nil
 }
