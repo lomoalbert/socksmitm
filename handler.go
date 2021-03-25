@@ -4,8 +4,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
+	"time"
 
 	"golang.org/x/net/proxy"
 )
@@ -25,7 +27,8 @@ type UDPHandlerFunc func(clientConn net.Conn, host string, port int)
 
 func NewMux(DefaultDialer proxy.Dialer) *Mux {
 	return &Mux{
-		DefaultHandler:    NewDefaultHandlerFunc(DefaultDialer),
+		DefaultHandler: NewNotRealReqHandlerFunc(DefaultDialer),
+		//DefaultHandler:    NewDefaultHandlerFunc(DefaultDialer),
 		Handler:           make(HostHandler),
 		DefaultUDPHandler: NewDefaultUDPHandlerFunc(DefaultDialer),
 		UDPHandler:        make(UDPHostHandler),
@@ -104,6 +107,18 @@ func NewDefaultHandlerFunc(dialer proxy.Dialer) HandlerFunc {
 		defer clientConn.Close()
 		go io.Copy(serverConn, clientConn)
 		io.Copy(clientConn, serverConn)
+	}
+}
+
+func NewNotRealReqHandlerFunc(dialer proxy.Dialer) HandlerFunc {
+	return func(clientConn net.Conn, isTls bool, host string, port int) {
+		defer clientConn.Close()
+		clientConn.SetReadDeadline(time.Now().Add(time.Second * 5))
+		body, err := ioutil.ReadAll(clientConn)
+		if err != nil {
+			log.Println(string(body))
+			return
+		}
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"log"
 	"math/big"
 	"net"
 	"time"
@@ -21,7 +20,6 @@ func GenMITMTLSConfig(rootCa *x509.Certificate, rootPrivateKey interface{}, dnsN
 	if err != nil {
 		return nil, xerrors.Errorf("%w", err)
 	}
-	log.Printf("%#v\n", rootCa.SubjectKeyId)
 	equiCer := &x509.Certificate{
 		SerialNumber: serialNumber, //证书序列号
 		Subject: pkix.Name{
