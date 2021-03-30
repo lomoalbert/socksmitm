@@ -14,7 +14,7 @@ func init() {
 
 }
 func main() {
-	var addr = "0.0.0.0:8889"
+	var addr = "0.0.0.0:5678"
 	pkcs12Data, err := ioutil.ReadFile("charles-ssl-proxying.p12")
 	if err != nil {
 		log.Printf("%+v\n", err)

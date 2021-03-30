@@ -1,14 +1,16 @@
 package socksmitm
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"strings"
 
 	"golang.org/x/crypto/pkcs12"
@@ -216,7 +218,7 @@ func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte)
 	if isTls {
 		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(&domainStr)})
 	}
-	server.mux.Handle(c2, isTls, domainStr, portInt)
+	server.mux.HandleHTTP(c2, isTls, domainStr, portInt)
 }
 
 func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port []byte) {
@@ -257,7 +259,7 @@ func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port [
 	if isTls {
 		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(&domainStr)})
 	}
-	server.mux.Handle(c2, isTls, domainStr, portInt)
+	server.mux.HandleHTTP(c2, isTls, domainStr, portInt)
 }
 
 func (server *Server) GenFuncGetConfigForClient(hostname *string) func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
@@ -279,22 +281,19 @@ func (server *Server) GenFuncGetConfigForClient(hostname *string) func(clientHel
 
 // RegisterRootCa 注册 root.ca 处理器, 用于浏览器获取ca证书
 func (server *Server) RegisterRootCa() {
-	server.mux.Register("root.ca", func(conn net.Conn, isTls bool, host string, port int) {
+	server.mux.Register("root.ca", func(r *http.Request) (*http.Response, error) {
 		rootCertData := pem.EncodeToMemory(&pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: server.rootCertificate.Raw,
 		})
-		buff := make([]byte, 1024)
-		_, err := conn.Read(buff)
+		defer r.Body.Close()
+		header := "HTTP/1.1 200 OK\nContent-Type: application/octet-stream\nContent-Disposition: attachment; filename=\"rootca.pem\"\nConnection: close\n\n"
+		resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(append([]byte(header), rootCertData...))), r)
 		if err != nil {
-			log.Printf("%+v\n", err)
-			return
+			return nil, xerrors.Errorf("%w", err)
 		}
-		log.Println(string(buff))
-		log.Println(string(rootCertData))
-		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\nContent-Type: application/octet-stream\nContent-Disposition: attachment; filename=\"rootca.pem\"\nContent-Length: %d\nConnection: close\n\n", len(rootCertData))))
-		conn.Write(rootCertData)
-		return
+		resp.ContentLength = int64(len(rootCertData))
+		return resp, nil
 	})
 }
 
