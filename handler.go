@@ -27,8 +27,7 @@ type UDPHandlerFunc func(clientConn net.Conn, host string, port int)
 
 func NewMux(DefaultDialer proxy.Dialer) *Mux {
 	return &Mux{
-		DefaultHandler: NewNotRealReqHandlerFunc(DefaultDialer),
-		//DefaultHandler:    NewDefaultHandlerFunc(DefaultDialer),
+		DefaultHandler:    NewDefaultHandlerFunc(DefaultDialer),
 		Handler:           make(HostHandler),
 		DefaultUDPHandler: NewDefaultUDPHandlerFunc(DefaultDialer),
 		UDPHandler:        make(UDPHostHandler),
