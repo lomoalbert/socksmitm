@@ -2,19 +2,24 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
-	"log"
-
 	"github.com/lomoalbert/socksmitm"
 	proxy2 "golang.org/x/net/proxy"
+	"io/ioutil"
+	"log"
 )
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 }
+
 func main() {
-	var addr = "0.0.0.0:5678"
+	err := socksmitm.PacListenAndServe(4567)
+	if err != nil {
+		log.Printf("%+v\n", err)
+		return
+	}
+	var socksAddr = "0.0.0.0:5678"
 	pkcs12Data, err := ioutil.ReadFile("charles-ssl-proxying.p12")
 	if err != nil {
 		log.Printf("%+v\n", err)
@@ -40,7 +45,7 @@ func main() {
 	server.RegisterRootCa() // 注册 root.ca 处理器, 用于浏览器获取ca证书
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
-	err = server.Run(ctx, addr)
+	err = server.Run(ctx, socksAddr)
 	if err != nil {
 		log.Printf("%+v\n", err)
 		return

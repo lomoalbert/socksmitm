@@ -37,7 +37,7 @@ func (server *Server) Run(ctx context.Context, addr string) error {
 	if err != nil {
 		return xerrors.Errorf("%w", err)
 	}
-	log.Println("listen:", addr)
+	log.Println("socks server listen:", addr)
 	go func() {
 		<-ctx.Done()
 		listener.Close()
