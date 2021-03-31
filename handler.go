@@ -13,27 +13,27 @@ import (
 )
 
 type Mux struct {
-	DefaultHTTPHandler HTTPHandlerFunc
+	DefaultHTTPHandler HTTPRoundTrip
 	HTTPHandlerMap     HTTPHandlerMap
 	DefaultUDPHandler  UDPHandlerFunc
 	UDPHandlerMap      UDPHandlerMap
 }
 
-type HTTPHandlerMap map[string]HTTPHandlerFunc
-type HTTPHandlerFunc func(*http.Request) (*http.Response, error)
+type HTTPHandlerMap map[string]HTTPRoundTrip
+type HTTPRoundTrip func(*http.Request) (*http.Response, error)
 type UDPHandlerMap map[string]UDPHandlerFunc
 type UDPHandlerFunc func(clientConn net.Conn, host string, port int)
 
 func NewMux(DefaultDialer proxy.Dialer) *Mux {
 	return &Mux{
-		DefaultHTTPHandler: RoundTrip,
+		DefaultHTTPHandler: NormalRoundTrip,
 		HTTPHandlerMap:     make(HTTPHandlerMap),
 		DefaultUDPHandler:  NewDefaultUDPHandlerFunc(DefaultDialer),
 		UDPHandlerMap:      make(UDPHandlerMap),
 	}
 }
 
-func (mux *Mux) SetDefaultHandlerFunc(handler HTTPHandlerFunc) {
+func (mux *Mux) SetDefaultHTTPRoundTrip(handler HTTPRoundTrip) {
 	mux.DefaultHTTPHandler = handler
 }
 
@@ -41,7 +41,7 @@ func (mux *Mux) SetDefaultUDPHandlerFunc(UDPhandler UDPHandlerFunc) {
 	mux.DefaultUDPHandler = UDPhandler
 }
 
-func (mux *Mux) Register(host string, handler HTTPHandlerFunc) {
+func (mux *Mux) Register(host string, handler HTTPRoundTrip) {
 	mux.HTTPHandlerMap[host] = handler
 }
 
@@ -65,6 +65,8 @@ func (mux *Mux) HandleHTTP(conn net.Conn, isTls bool, host string, port int) {
 		req = req.Clone(context.Background())
 		if isTls {
 			req.URL.Scheme = "https"
+		} else {
+			req.URL.Scheme = "http"
 		}
 		req.RequestURI = ""
 		req.URL.Host = fmt.Sprintf("%s:%d", host, port)
@@ -102,7 +104,7 @@ func BlockUDPHandlerFunc(conn net.Conn, host string, port int) {
 	return
 }
 
-func RoundTrip(req *http.Request) (*http.Response, error) {
+func NormalRoundTrip(req *http.Request) (*http.Response, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {

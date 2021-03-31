@@ -27,15 +27,15 @@ function FindProxyForURL(url, host)
 }
 `
 
-func PacListenAndServe(port int) error {
+func PacListenAndServe(pacPort, socksPort int) error {
 	ip, err := externalIP()
 	if err != nil {
 		return xerrors.Errorf("%w", err)
 	}
 	go func() {
-		log.Println("pac server listen: " + fmt.Sprintf("%s:%d", ip, port))
-		log.Println("pac url: " + fmt.Sprintf("http://%s:%d/", ip, port))
-		err = http.ListenAndServe(fmt.Sprintf("%s:%d", ip, port), &PacHandler{Host: ip, Port: port})
+		log.Println("pac server listen: " + fmt.Sprintf("%s:%d", ip, pacPort))
+		log.Println("pac url: " + fmt.Sprintf("http://%s:%d/", ip, pacPort))
+		err = http.ListenAndServe(fmt.Sprintf("%s:%d", ip, pacPort), &PacHandler{Host: ip, Port: pacPort, SocksPort: socksPort})
 		if err != nil {
 			log.Printf("%+v\n", err)
 			return
@@ -45,13 +45,14 @@ func PacListenAndServe(port int) error {
 }
 
 type PacHandler struct {
-	Host string
-	Port int
+	Host      string
+	Port      int
+	SocksPort int
 }
 
 func (handler *PacHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
-	_, err := w.Write([]byte(fmt.Sprintf(pacContent, handler.Host, handler.Port)))
+	_, err := w.Write([]byte(fmt.Sprintf(pacContent, handler.Host, handler.SocksPort)))
 	if err != nil {
 		log.Printf("%+v\n", err)
 		return

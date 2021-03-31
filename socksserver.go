@@ -22,6 +22,7 @@ type Server struct {
 	rootCertificate *x509.Certificate
 	rootPrivateKey  interface{}
 	configs         map[string]*tls.Config
+	Port            int
 }
 
 func NewSocks5Server(mux *Mux, pkcs12Data []byte, pkcs12Password string) (*Server, error) {
