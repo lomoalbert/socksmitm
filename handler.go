@@ -2,7 +2,6 @@ package socksmitm
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"golang.org/x/net/proxy"
 	"golang.org/x/xerrors"
@@ -50,8 +49,10 @@ func (mux *Mux) HandleHTTP(conn net.Conn, isTls bool, host string, port int) {
 		log.Println("conn closing...")
 	}()
 	for {
+		log.Println(host, port)
 		handler, ok := mux.HTTPHandlerMap[host]
 		if !ok {
+			log.Println("not found handler for ", host, "use default http handler")
 			handler = mux.DefaultHTTPHandler
 		}
 		if handler == nil {
@@ -62,14 +63,20 @@ func (mux *Mux) HandleHTTP(conn net.Conn, isTls bool, host string, port int) {
 			log.Printf("%+v\n", err)
 			return
 		}
-		req = req.Clone(context.Background())
+		if req.Host != host {
+			log.Println("hostname:", req.Host, "host:", req.URL.Host)
+			handlerByHostName, ok := mux.HTTPHandlerMap[req.Host]
+			if ok && handlerByHostName != nil {
+				handler = handlerByHostName
+			}
+		}
 		if isTls {
 			req.URL.Scheme = "https"
 		} else {
 			req.URL.Scheme = "http"
 		}
 		req.RequestURI = ""
-		req.URL.Host = fmt.Sprintf("%s:%d", host, port)
+		req.URL.Host = req.Host
 		resp, err := handler(req)
 		if err != nil {
 			log.Printf("%+v\n", err)
@@ -108,6 +115,7 @@ func NormalRoundTrip(req *http.Request) (*http.Response, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Println(req.Host, req.URL.Host)
 		return nil, xerrors.Errorf("%w", err)
 	}
 	return resp, nil
