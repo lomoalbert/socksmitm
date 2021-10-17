@@ -33,7 +33,6 @@ func PacListenAndServe(pacPort, socksPort int) error {
 		return xerrors.Errorf("%w", err)
 	}
 	go func() {
-		log.Println("pac server listen: " + fmt.Sprintf("%s:%d", ip, pacPort))
 		log.Println("pac url: " + fmt.Sprintf("http://%s:%d/", ip, pacPort))
 		err = http.ListenAndServe(fmt.Sprintf("%s:%d", ip, pacPort), &PacHandler{Host: ip, Port: pacPort, SocksPort: socksPort})
 		if err != nil {

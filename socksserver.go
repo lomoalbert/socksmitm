@@ -282,6 +282,7 @@ func (server *Server) GenFuncGetConfigForClient(hostname *string) func(clientHel
 
 // RegisterRootCa 注册 root.ca 处理器, 用于浏览器获取ca证书
 func (server *Server) RegisterRootCa() {
+	log.Println("root ca url: http://root.ca/")
 	server.mux.Register("root.ca", func(r *http.Request) (*http.Response, error) {
 		rootCertData := pem.EncodeToMemory(&pem.Block{
 			Type:  "CERTIFICATE",
