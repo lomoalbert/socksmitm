@@ -217,9 +217,12 @@ func (server *Server) SocksTCPConnectIPv4(conn net.Conn, ip []byte, port []byte)
 		}
 	}()
 	if isTls {
-		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(&domainStr)})
+		var clientHello = new(tls.ClientHelloInfo)
+		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(clientHello)})
+		server.mux.HandleHTTPS(c2, clientHello, domainStr, portInt)
+	} else {
+		server.mux.HandleHTTP(c2, domainStr, portInt)
 	}
-	server.mux.HandleHTTP(c2, isTls, domainStr, portInt)
 }
 
 func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port []byte) {
@@ -258,14 +261,17 @@ func (server *Server) SocksTCPConnectDomain(conn net.Conn, domain []byte, port [
 		}
 	}()
 	if isTls {
-		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(&domainStr)})
+		var clientHello = new(tls.ClientHelloInfo)
+		c2 = tls.Server(c2, &tls.Config{GetConfigForClient: server.GenFuncGetConfigForClient(clientHello)})
+		server.mux.HandleHTTPS(c2, clientHello, domainStr, portInt)
+	} else {
+		server.mux.HandleHTTP(c2, domainStr, portInt)
 	}
-	server.mux.HandleHTTP(c2, isTls, domainStr, portInt)
 }
 
-func (server *Server) GenFuncGetConfigForClient(hostname *string) func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
+func (server *Server) GenFuncGetConfigForClient(clientHelloInfo2 *tls.ClientHelloInfo) func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
 	return func(clientHelloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
-		*hostname = clientHelloInfo.ServerName
+		*clientHelloInfo2 = *clientHelloInfo
 		config, ok := server.configs[MainDomain(clientHelloInfo.ServerName)]
 		var err error
 		if !ok {

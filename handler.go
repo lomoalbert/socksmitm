@@ -2,6 +2,7 @@ package socksmitm
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"golang.org/x/net/proxy"
 	"golang.org/x/xerrors"
@@ -44,37 +45,51 @@ func (mux *Mux) Register(host string, handler HTTPRoundTrip) {
 	mux.HTTPHandlerMap[host] = handler
 }
 
-func (mux *Mux) HandleHTTP(conn net.Conn, isTls bool, host string, port int) {
-	defer func() {
-		log.Println("conn closing...")
-	}()
+func (mux *Mux) HandleHTTPS(conn net.Conn, clientHelloInfo *tls.ClientHelloInfo, targetIP string, port int) {
 	for {
-		log.Println(host, port)
-		handler, ok := mux.HTTPHandlerMap[host]
-		if !ok {
-			log.Println("not found handler for ", host, "use default http handler")
-			handler = mux.DefaultHTTPHandler
-		}
-		if handler == nil {
-			return
-		}
-		req, err := http.ReadRequest(bufio.NewReader(conn))
-		if err != nil {
-			log.Printf("%+v\n", err)
-			return
-		}
-		if req.Host != host {
-			log.Println("hostname:", req.Host, "host:", req.URL.Host)
+		func() {
+			req, err := http.ReadRequest(bufio.NewReader(conn))
+			if err != nil {
+				return
+			}
+			log.Println("req.Host:", req.Host, "req.URL.Host", req.URL.Host, "targetIP:", targetIP, "clientHelloInfo:", clientHelloInfo.ServerName)
+
+			handler := mux.DefaultHTTPHandler
 			handlerByHostName, ok := mux.HTTPHandlerMap[req.Host]
 			if ok && handlerByHostName != nil {
 				handler = handlerByHostName
 			}
-		}
-		if isTls {
 			req.URL.Scheme = "https"
-		} else {
-			req.URL.Scheme = "http"
+			req.RequestURI = ""
+			req.URL.Host = req.Host
+			resp, err := handler(req)
+			if err != nil {
+				log.Printf("%+v\n", err)
+				return
+			}
+			defer resp.Body.Close()
+			err = resp.Write(conn)
+			if err != nil {
+				log.Printf("%+v\n", err)
+				return
+			}
+		}()
+	}
+}
+func (mux *Mux) HandleHTTP(conn net.Conn, targetIP string, port int) {
+	for {
+		req, err := http.ReadRequest(bufio.NewReader(conn))
+		if err != nil {
+			return
 		}
+		log.Println("req.Host:", req.Host, "req.URL.Host", req.URL.Host, "targetIP:", targetIP)
+
+		handler := mux.DefaultHTTPHandler
+		handlerByHostName, ok := mux.HTTPHandlerMap[req.Host]
+		if ok && handlerByHostName != nil {
+			handler = handlerByHostName
+		}
+		req.URL.Scheme = "http"
 		req.RequestURI = ""
 		req.URL.Host = req.Host
 		resp, err := handler(req)
@@ -112,10 +127,14 @@ func BlockUDPHandlerFunc(conn net.Conn, host string, port int) {
 }
 
 func NormalRoundTrip(req *http.Request) (*http.Response, error) {
-	client := &http.Client{}
+	client := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println(req.Host, req.URL.Host)
+		//log.Println(req.Host, req.URL.Host)
 		return nil, xerrors.Errorf("%w", err)
 	}
 	return resp, nil
