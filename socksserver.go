@@ -7,14 +7,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"golang.org/x/crypto/pkcs12"
+	"golang.org/x/xerrors"
 	"io"
 	"log"
 	"net"
 	"net/http"
-	"strings"
-
-	"golang.org/x/crypto/pkcs12"
-	"golang.org/x/xerrors"
 )
 
 type Server struct {
@@ -306,11 +304,7 @@ func (server *Server) RegisterRootCa() {
 }
 
 func MainDomain(domain string) string {
-	parts := strings.Split(domain, ".")
-	if len(parts) <= 2 {
-		return domain
-	}
-	return strings.Join(parts[len(parts)-2:], ".")
+	return domain
 }
 
 func (server *Server) SocksUDPConnect(conn net.Conn) error {
