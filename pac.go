@@ -1,6 +1,7 @@
 package socksmitm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"golang.org/x/xerrors"
@@ -27,14 +28,19 @@ function FindProxyForURL(url, host)
 }
 `
 
-func PacListenAndServe(pacPort, socksPort int) error {
+func PacListenAndServe(ctx context.Context, pacPort, socksPort int) error {
 	ip, err := externalIP()
 	if err != nil {
 		return xerrors.Errorf("%w", err)
 	}
+	log.Println("pac url: " + fmt.Sprintf("http://%s:%d/", ip, pacPort))
+	srv := &http.Server{Addr: fmt.Sprintf("%s:%d", ip, pacPort), Handler: &PacHandler{Host: ip, Port: pacPort, SocksPort: socksPort}}
 	go func() {
-		log.Println("pac url: " + fmt.Sprintf("http://%s:%d/", ip, pacPort))
-		err = http.ListenAndServe(fmt.Sprintf("%s:%d", ip, pacPort), &PacHandler{Host: ip, Port: pacPort, SocksPort: socksPort})
+		<-ctx.Done()
+		srv.Shutdown(ctx)
+	}()
+	go func() {
+		err = srv.ListenAndServe()
 		if err != nil {
 			log.Printf("%+v\n", err)
 			return

@@ -23,7 +23,7 @@ var pacPort = 4567
 var socksPort = 5678
 
 func main() {
-	err := socksmitm.PacListenAndServe(pacPort, socksPort)
+	err := socksmitm.PacListenAndServe(context.TODO(), pacPort, socksPort)
 	if err != nil {
 		log.Printf("%+v\n", err)
 		return
@@ -45,8 +45,8 @@ func main() {
 	//	return
 	//}
 	mux := socksmitm.NewMux(dialer)
-	mux.SetDefaultHTTPRoundTrip(socksmitm.BlockRoundTrip)
-	mux.Register("ip.fm", ChangeRespRoutdTrip)
+	mux.SetDefaultHTTPRoundTrip(socksmitm.NormalRoundTrip)
+	mux.Register("baidu.com", ChangeRespRoutdTrip)
 	//mux.Register("genresp.test",TestComRoutdTrip)
 	server, err := socksmitm.NewSocks5Server(mux, pkcs12Data, "DwCpsCLsZc7c")
 	if err != nil {
