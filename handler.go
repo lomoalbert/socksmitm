@@ -2,11 +2,13 @@ package socksmitm
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"golang.org/x/net/proxy"
 	"golang.org/x/xerrors"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -138,6 +140,32 @@ func NormalRoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, xerrors.Errorf("%w", err)
 	}
 	return resp, nil
+}
+
+func CopyRoundTrip(path string, handler func(req *http.Request, reqBody []byte, resp *http.Response, respBody []byte)) HTTPRoundTrip {
+	return func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != path {
+			return NormalRoundTrip(req)
+		}
+		reqBodyBytes, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return nil, xerrors.Errorf("%w", err)
+		}
+		req.ContentLength = int64(len(reqBodyBytes))
+		req.Body = ioutil.NopCloser(bytes.NewReader(reqBodyBytes))
+		resp, err := NormalRoundTrip(req)
+		if err != nil {
+			return nil, xerrors.Errorf("%w\n", err)
+		}
+		respBodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, xerrors.Errorf("%w\n", err)
+		}
+		req.Body = ioutil.NopCloser(bytes.NewReader(reqBodyBytes))
+		resp.Body = ioutil.NopCloser(bytes.NewReader(respBodyBytes))
+		go handler(req, reqBodyBytes, resp, respBodyBytes)
+		return resp, nil
+	}
 }
 
 func NewDefaultUDPHandlerFunc(dialer proxy.Dialer) UDPHandlerFunc {
