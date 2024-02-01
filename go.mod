@@ -1,9 +1,11 @@
 module github.com/lomoalbert/socksmitm
 
-go 1.14
+go 1.21
 
 require (
-	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-	golang.org/x/net v0.0.0-20210423184538-5f58ad60dda6
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+	golang.org/x/crypto v0.18.0
+	golang.org/x/net v0.20.0
+	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028
 )
+
+require golang.org/x/text v0.14.0 // indirect

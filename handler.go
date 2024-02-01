@@ -8,7 +8,6 @@ import (
 	"golang.org/x/net/proxy"
 	"golang.org/x/xerrors"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -147,22 +146,22 @@ func CopyRoundTrip(path string, handler func(req *http.Request, reqBody []byte, 
 		if req.URL.Path != path {
 			return NormalRoundTrip(req)
 		}
-		reqBodyBytes, err := ioutil.ReadAll(req.Body)
+		reqBodyBytes, err := io.ReadAll(req.Body)
 		if err != nil {
 			return nil, xerrors.Errorf("%w", err)
 		}
 		req.ContentLength = int64(len(reqBodyBytes))
-		req.Body = ioutil.NopCloser(bytes.NewReader(reqBodyBytes))
+		req.Body = io.NopCloser(bytes.NewReader(reqBodyBytes))
 		resp, err := NormalRoundTrip(req)
 		if err != nil {
 			return nil, xerrors.Errorf("%w\n", err)
 		}
-		respBodyBytes, err := ioutil.ReadAll(resp.Body)
+		respBodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, xerrors.Errorf("%w\n", err)
 		}
-		req.Body = ioutil.NopCloser(bytes.NewReader(reqBodyBytes))
-		resp.Body = ioutil.NopCloser(bytes.NewReader(respBodyBytes))
+		req.Body = io.NopCloser(bytes.NewReader(reqBodyBytes))
+		resp.Body = io.NopCloser(bytes.NewReader(respBodyBytes))
 		go handler(req, reqBodyBytes, resp, respBodyBytes)
 		return resp, nil
 	}

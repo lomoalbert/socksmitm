@@ -8,9 +8,10 @@ import (
 	"github.com/lomoalbert/socksmitm"
 	proxy2 "golang.org/x/net/proxy"
 	"golang.org/x/xerrors"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -28,7 +29,7 @@ func main() {
 		log.Printf("%+v\n", err)
 		return
 	}
-	pkcs12Data, err := ioutil.ReadFile("charles-ssl-proxying.p12")
+	pkcs12Data, err := os.ReadFile("charles-ssl-proxying.p12")
 	if err != nil {
 		log.Printf("%+v\n", err)
 		return
@@ -71,7 +72,7 @@ func ChangeRespRoutdTrip(req *http.Request) (*http.Response, error) {
 	}
 	orgBody := resp.Body
 	defer orgBody.Close()
-	_, err = ioutil.ReadAll(orgBody)
+	_, err = io.ReadAll(orgBody)
 	if err != nil {
 		return nil, xerrors.Errorf("%w", err)
 	}
@@ -91,7 +92,7 @@ func ChangeRespRoutdTrip(req *http.Request) (*http.Response, error) {
 			}
 		}
 	}
-	resp.Body = ioutil.NopCloser(bytes.NewReader(newData))
+	resp.Body = io.NopCloser(bytes.NewReader(newData))
 	resp.Header.Set("Content-Length", strconv.Itoa(len(newData)))
 	resp.ContentLength = int64(len(newData))
 	log.Println("orgHeader:", resp.Header, resp.Header.Get("Content-Length"))
