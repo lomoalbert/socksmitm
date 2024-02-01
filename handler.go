@@ -48,33 +48,30 @@ func (mux *Mux) Register(host string, handler HTTPRoundTrip) {
 
 func (mux *Mux) HandleHTTPS(conn net.Conn, clientHelloInfo *tls.ClientHelloInfo, targetIP string, port int) {
 	for {
-		func() {
-			req, err := http.ReadRequest(bufio.NewReader(conn))
-			if err != nil {
-				return
-			}
-			log.Println("req.Host:", req.Host, "req.URL.Host", req.URL.Host, "targetIP:", targetIP, "clientHelloInfo:", clientHelloInfo.ServerName)
+		req, err := http.ReadRequest(bufio.NewReader(conn))
+		if err != nil {
+			return
+		}
+		log.Println("req.Host:", req.Host, "req.URL.Host", req.URL.Host, "targetIP:", targetIP, "clientHelloInfo:", clientHelloInfo.ServerName)
 
-			handler := mux.DefaultHTTPHandler
-			handlerByHostName, ok := mux.HTTPHandlerMap[req.Host]
-			if ok && handlerByHostName != nil {
-				handler = handlerByHostName
-			}
-			req.URL.Scheme = "https"
-			req.RequestURI = ""
-			req.URL.Host = req.Host
-			resp, err := handler(req)
-			if err != nil {
-				log.Printf("%+v\n", err)
-				return
-			}
-			defer resp.Body.Close()
-			err = resp.Write(conn)
-			if err != nil {
-				log.Printf("%+v\n", err)
-				return
-			}
-		}()
+		handler := mux.DefaultHTTPHandler
+		handlerByHostName, ok := mux.HTTPHandlerMap[req.Host]
+		if ok && handlerByHostName != nil {
+			handler = handlerByHostName
+		}
+		req.URL.Scheme = "https"
+		req.RequestURI = ""
+		req.URL.Host = req.Host
+		resp, err := handler(req)
+		if err != nil {
+			log.Printf("%+v\n", err)
+			return
+		}
+		err = resp.Write(conn)
+		if err != nil {
+			log.Printf("%+v\n", err)
+			return
+		}
 	}
 }
 func (mux *Mux) HandleHTTP(conn net.Conn, targetIP string, port int) {
