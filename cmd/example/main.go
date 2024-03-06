@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func init() {
@@ -47,7 +48,8 @@ func main() {
 	//}
 	mux := socksmitm.NewMux(dialer)
 	mux.SetDefaultHTTPRoundTrip(socksmitm.NormalRoundTrip)
-	mux.Register("baidu.com", ChangeRespRoutdTrip)
+	mux.Register("abc.com", ChangeReqRoundTrip)
+	mux.Register("def.com", ChangeRespRoundTrip)
 	//mux.Register("genresp.test",TestComRoutdTrip)
 	server, err := socksmitm.NewSocks5Server(mux, pkcs12Data, "DwCpsCLsZc7c")
 	if err != nil {
@@ -64,7 +66,35 @@ func main() {
 	}
 }
 
-func ChangeRespRoutdTrip(req *http.Request) (*http.Response, error) {
+func ChangeReqRoundTrip(req *http.Request) (*http.Response, error) {
+	log.Println("req:", req.Method, req.Proto, req.URL.Scheme, req.Host, req.URL.Path)
+	if req.URL.Path != "/api/student" {
+		return socksmitm.NormalRoundTrip(req)
+	}
+	if req.Body == nil {
+		return nil, xerrors.New("not found req body")
+	}
+	err := req.ParseForm()
+	if err != nil {
+		return nil, xerrors.Errorf("%w", err)
+	}
+	log.Println("Content-Length:", req.Header.Get("Content-Length"))
+	formItem := req.Form.Get("key")
+	formItem = "value"
+	req.Form.Set("key", formItem)
+	body := req.Form.Encode()
+	newReq, err := http.NewRequest(req.Method, fmt.Sprintf("%s://%s%s", req.URL.Scheme, req.Host, req.URL.Path), strings.NewReader(body))
+	newReq.Header = req.Header
+	newReq.Header.Set("Content-Length", strconv.Itoa(len([]byte(body))))
+	log.Println("Content-Length:", newReq.Header.Get("Content-Length"))
+	resp, err := socksmitm.NormalRoundTrip(newReq)
+	if err != nil {
+		return nil, xerrors.Errorf("%w", err)
+	}
+	return resp, nil
+}
+
+func ChangeRespRoundTrip(req *http.Request) (*http.Response, error) {
 	log.Println("req:", req.Method, req.Proto, req.URL.Scheme, req.Host, req.URL.Path)
 	resp, err := socksmitm.NormalRoundTrip(req)
 	if err != nil {
